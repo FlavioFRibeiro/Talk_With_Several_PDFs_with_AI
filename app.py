@@ -31,14 +31,14 @@ def get_text_chunks(text):
 
 
 def get_vectorstore(text_chunks):
-    embeddings = OpenAIEmbeddings() # type: ignore
-    #embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = OpenAIEmbeddings()
+    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
 
 def get_conversation_chain(vectorstore):
-    llm = ChatOpenAI() # type: ignore
+    llm = ChatOpenAI()
     # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
 
     memory = ConversationBufferMemory(
@@ -64,44 +64,8 @@ def handle_userinput(user_question):
                 "{{MSG}}", message.content), unsafe_allow_html=True)
 
 
-def get_context(query: str, table, num_results: int = 3) -> str:
-    """Search the database for relevant context.
-
-    Args:
-        query: User's question
-        table: LanceDB table object
-        num_results: Number of results to return
-
-    Returns:
-        str: Concatenated context from relevant chunks with source information
-    """
-    results = table.search(query).limit(num_results).to_pandas()
-    contexts = []
-
-    for _, row in results.iterrows():
-        # Extract metadata
-        filename = row["metadata"]["filename"]
-        page_numbers = row["metadata"]["page_numbers"]
-        title = row["metadata"]["title"]
-
-        # Build source citation
-        source_parts = []
-        if filename:
-            source_parts.append(filename)
-        if page_numbers:
-            source_parts.append(f"p. {', '.join(str(p) for p in page_numbers)}")
-
-        source = f"\nSource: {' - '.join(source_parts)}"
-        if title:
-            source += f"\nTitle: {title}"
-
-        contexts.append(f"{row['text']}{source}")
-
-    return "\n\n".join(contexts)
-
 def main():
     load_dotenv()
-
     st.set_page_config(page_title="Chat with multiple PDFs",
                        page_icon=":books:")
     st.write(css, unsafe_allow_html=True)
@@ -113,7 +77,6 @@ def main():
 
     st.header("Chat with multiple PDFs :books:")
     user_question = st.text_input("Ask a question about your documents:")
-
     if user_question:
         handle_userinput(user_question)
 
@@ -125,13 +88,17 @@ def main():
             with st.spinner("Processing"):
                 # get pdf text
                 raw_text = get_pdf_text(pdf_docs)
+
                 # get the text chunks
                 text_chunks = get_text_chunks(raw_text)
+
                 # create vector store
                 vectorstore = get_vectorstore(text_chunks)
+
                 # create conversation chain
                 st.session_state.conversation = get_conversation_chain(
                     vectorstore)
+                st.success("Processing complete! You can now ask questions about your documents.")
 
 if __name__ == '__main__':
     main()
